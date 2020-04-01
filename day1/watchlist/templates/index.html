@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Bruce's WatchList</title>
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/style.css') }}">
 </head>
 <body>
-    <h2>{{name}}'s WatchList</h2>
+    <h2>
+        <img class="avatar" src="{{ url_for('static',filename='image/1.jpg') }}" alt="头像">
+        {{name}}'s WatchList
+    </h2>
     <p>总共{{ movies|length }}</p>
-    <ul>
+    <ul class="movie-list" >
         {% for movie in movies %}
         <li>{{movie.title}} - {{movie.year}}</li>
         {% endfor %}
