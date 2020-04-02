@@ -29,6 +29,12 @@ class Movie(db.Model):
     title = db.Column(db.String(20))
     year = db.Column(db.String(4))
 
+#模板上下文处理函数
+@app.context_processor
+def common_user():
+    user = User.query.first()
+    return dict(user=user)
+
 #views
 @app.route('/')
 def index():
@@ -47,9 +53,10 @@ def index():
 #     ]
 #     return render_template('index.html',name=name,movies=movies)
     # return "<h1>Hello,Flask 中国<h1>"
-    user = User.query.first()
+    # user = User.query.first()
     movies = Movie.query.all()
-    return render_template('index.html',user=user,movies=movies)
+    # return render_template('index.html',user=user,movies=movies)
+    return render_template('index.html',movies=movies)
 
 
 #动态url
@@ -96,3 +103,14 @@ def forge():
 
     db.session.commit()
     click.echo("插入数据成功")
+
+
+#错误处理函数
+@app.errorhandler(404)
+def page_not_found(e):
+    # user = User.query.first()
+    #返回模板和状态码
+    # return render_template('404.html',user=user),404
+    return render_template('404.html')
+
+
