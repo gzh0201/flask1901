@@ -32,6 +32,48 @@ class Movie(db.Model):
 #views
 @app.route('/')
 def index():
+#     name='Bruce'
+#     movies = [
+#         {"title":"大赢家","year":"2020"},
+#         {"title":"囧架架","year":"2020"},
+#         {"title":"战狼","year":"2020"},
+#         {"title":"速度与激情","year":"2018"},
+#         {"title":"心花怒放","year":"2012"},
+#         {"title":"我的父亲母亲","year":"1995"},
+#         {"title":"战狼","year":"2020"},
+#         {"title":"速度与激情","year":"2018"},
+#         {"title":"心花怒放","year":"2012"},
+#         {"title":"我的父亲母亲","year":"1995"},
+#     ]
+#     return render_template('index.html',name=name,movies=movies)
+    # return "<h1>Hello,Flask 中国<h1>"
+    user = User.query.first()
+    movies = Movie.query.all()
+    return render_template('index.html',user=user,movies=movies)
+
+
+#动态url
+# @app.route('/index/<name>')
+# def home(name):
+#     print(url_for("home",name="Bruce"))
+#     return "<h1>Hello,%s<h1>"%name
+
+
+
+#自定义命令
+#新建data.db的数据库初始化命令
+@app.cli.command()  #装饰器，注册命令
+@click.option('--drop',is_flag=True,help="删除后再创建")
+def initdb(drop):
+    if drop:
+        db.drop_all()
+    db.create_all()
+    click.echo("初始化数据库完成")
+
+
+#向data.db中写入数据的命令
+@app.cli.command()
+def forge():
     name='Bruce'
     movies = [
         {"title":"大赢家","year":"2020"},
@@ -45,22 +87,12 @@ def index():
         {"title":"心花怒放","year":"2012"},
         {"title":"我的父亲母亲","year":"1995"},
     ]
-    return render_template('index.html',name=name,movies=movies)
-    # return "<h1>Hello,Flask 中国<h1>"
 
-#动态url
-# @app.route('/index/<name>')
-# def home(name):
-#     print(url_for("home",name="Bruce"))
-#     return "<h1>Hello,%s<h1>"%name
+    user = User(name=name)
+    db.session.add(user)
+    for m in movies:
+        movie = Movie(title=m['title'],year=m['year'])
+        db.session.add(movie)
 
-
-
-#自定义命令
-@app.cli.command()  #装饰器，注册命令
-@click.option('--drop',is_flag=True,help="删除后再创建")
-def initdb(drop):
-    if drop:
-        db.drop_all()
-    db.create_all()
-    click.echo("初始化数据库完成")
+    db.session.commit()
+    click.echo("插入数据成功")
