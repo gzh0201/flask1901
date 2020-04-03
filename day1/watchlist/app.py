@@ -41,7 +41,7 @@ login_manager.login_view='login'
 login_manager.login_manage="您未登录"
 
 #models
-class User(db.Model):
+class User(db.Model,UserMixin):
     id = db.Column(db.Integer,primary_key= True)
     name = db.Column(db.String(20))
     username = db.Column(db.String(20))
@@ -127,12 +127,15 @@ def delete(movie_id):
 @app.route('/login',methods=['GET','POST'])
 def login():
     if request.method == 'POST':
+        # request在请求触发的时候才会包含数据
         username = request.form['username']
         password = request.form['password']
+         # 验证数据
         if not username or not password:
             flash('输入错误')
             return redirect(url_for('index'))
         user = User.query.first()
+        print(user.username)
         #验证用户和密码是否一致
         if user.username==username and user.validate_password(password):
             login_user(user)
