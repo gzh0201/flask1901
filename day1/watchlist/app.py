@@ -3,28 +3,56 @@ import sys
 
 from flask import Flask,render_template,url_for,redirect,request,flash
 import click
+#数据库
 from flask_sqlalchemy import SQLAlchemy  #导入扩展类
+#生成密码 验证密码
+from werkzeug.security import generate_password_hash, check_password_hash
+#登录
+from flask_login import LoginManager,UserMixin,login_user,logout_user,login_required,current_user
 
+
+# 得到当前平台
 WIN = sys.platform.startswith('win')
 if WIN:
+    #请求头
     prefix = 'sqlite:///'
 else:
     prefix = 'sqlite:////'
 
 app = Flask(__name__)
 
-#linux
+# 配置要在实例化之前linux
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////'+os.path.join(app.root_path,'data.db')
 #window
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+os.path.join(app.root_path,'data.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False #关闭了对模型修改的监控
 app.config['SECRET_KEY'] = 'watchlist_dev'
-db = SQLAlchemy(app)#初始化扩展，传入程序实例app
+#初始化扩展，传入程序实例app 在配置之后
+db = SQLAlchemy(app)
+
+#实例化登录扩展类
+login_manager = LoginManager(app) 
+# 用户加载的函数
+@login_manager.user_loader
+def load_user(user_id):
+    user = User.query.get(int(user_id))
+    return user
+login_manager.login_view='login'
+login_manager.login_manage="您未登录"
 
 #models
 class User(db.Model):
     id = db.Column(db.Integer,primary_key= True)
     name = db.Column(db.String(20))
+    username = db.Column(db.String(20))
+    password_hash = db.Column(db.String(128))
+    #生成密码
+    def set_password(self,password):
+        self.password_hash = generate_password_hash(password)
+    #验证密码
+    def validate_password(self,password):
+        return check_password_hash(self.password_hash,password)
+
 class Movie(db.Model):
     id = db.Column(db.Integer,primary_key= True)
     title = db.Column(db.String(20))
@@ -36,8 +64,9 @@ def common_user():
     user = User.query.first()
     return dict(user=user)
 
-#views
+#表单添加
 @app.route('/',methods=['GET','POST'])
+#views
 def index():
     if request.method == 'POST':
         title = request.form.get('title')
@@ -52,19 +81,6 @@ def index():
         db.session.commit()
         flash("创建成功")
         return redirect(url_for('index'))
-#     name='Bruce'
-#     movies = [
-#         {"title":"大赢家","year":"2020"},
-#         {"title":"囧架架","year":"2020"},
-#         {"title":"战狼","year":"2020"},
-#         {"title":"速度与激情","year":"2018"},
-#         {"title":"心花怒放","year":"2012"},
-#         {"title":"我的父亲母亲","year":"1995"},
-#         {"title":"战狼","year":"2020"},
-#         {"title":"速度与激情","year":"2018"},
-#         {"title":"心花怒放","year":"2012"},
-#         {"title":"我的父亲母亲","year":"1995"},
-#     ]
 #     return render_template('index.html',name=name,movies=movies)
     # return "<h1>Hello,Flask 中国<h1>"
     # user = User.query.first()
@@ -99,11 +115,39 @@ def edit(movie_id):
 
 #删除电影信息
 @app.route('/movie/delete/<int:movie_id>',methods=['GET','POST'])
+@login_required
 def delete(movie_id):
     movie = Movie.query.get_or_404(movie_id)
     db.session.delete(movie)
     db.session.commit()
     flash("删除成功")
+    return redirect(url_for("index"))
+
+#登录
+@app.route('/login',methods=['GET','POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if not username or not password:
+            flash('输入错误')
+            return redirect(url_for('index'))
+        user = User.query.first()
+        #验证用户和密码是否一致
+        if user.username==username and user.validate_password(password):
+            login_user(user)
+            flash('登录成功')
+            return redirect(url_for('index'))
+        flash('用户名或密码错误')
+        return redirect(url_for('login'))
+    return render_template('login.html')
+    
+#登出
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('退出成功')
     return redirect(url_for("index"))
 
 #自定义命令
@@ -142,6 +186,25 @@ def forge():
 
     db.session.commit()
     click.echo("插入数据成功")
+
+#生成管理员账号
+@app.cli.command()
+@click.option('--username',prompt=True,help='管理员账号')
+@click.option('--password',prompt=True,help='管理员密码',hide_input=True,confirmation_prompt=True)
+def admin(username,password):
+    db.create_all()
+    user = User.query.first()
+    if user is not None:
+        click.echo('更新用户信息')
+        user.username = username
+        user.password_hash = password
+    else:
+        click.echo('创建用户信息')
+        user = User(username=username,name='Admin')
+        user.set_password(password)
+        db.session.add(user)
+    db.session.commit()
+    click.echo("管理员创建完成")
 
 
 #错误处理函数
