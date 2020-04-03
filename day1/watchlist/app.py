@@ -97,6 +97,14 @@ def edit(movie_id):
 
     return render_template('edit.html',movie=movie)
 
+#删除电影信息
+@app.route('/movie/delete/<int:movie_id>',methods=['GET','POST'])
+def delete(movie_id):
+    movie = Movie.query.get_or_404(movie_id)
+    db.session.delete(movie)
+    db.session.commit()
+    flash("删除成功")
+    return redirect(url_for("index"))
 
 #自定义命令
 #新建data.db的数据库初始化命令
