@@ -1,7 +1,7 @@
 import os
 import sys
 
-from flask import Flask,render_template,url_for
+from flask import Flask,render_template,url_for,redirect,request,flash
 import click
 from flask_sqlalchemy import SQLAlchemy  #导入扩展类
 
@@ -18,6 +18,7 @@ app = Flask(__name__)
 #window
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+os.path.join(app.root_path,'data.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False #关闭了对模型修改的监控
+app.config['SECRET_KEY'] = 'watchlist_dev'
 db = SQLAlchemy(app)#初始化扩展，传入程序实例app
 
 #models
@@ -36,8 +37,21 @@ def common_user():
     return dict(user=user)
 
 #views
-@app.route('/')
+@app.route('/',methods=['GET','POST'])
 def index():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        year = request.form.get('year')
+        #验证数据
+        if not title or not year or len(year)>4 or len(title)>60:
+            flash("不能为空或者超过最大长度")
+            return redirect(url_for('index'))
+        #报错表单数据
+        movie = Movie(title=title,year=year)
+        db.session.add(movie)
+        db.session.commit()
+        flash("创建成功")
+        return redirect(url_for('index'))
 #     name='Bruce'
 #     movies = [
 #         {"title":"大赢家","year":"2020"},
@@ -65,6 +79,23 @@ def index():
 #     print(url_for("home",name="Bruce"))
 #     return "<h1>Hello,%s<h1>"%name
 
+@app.route('/movie/edit/<int:movie_id>',methods=['GET','POST'])
+def edit(movie_id):
+    movie = Movie.query.get_or_404(movie_id)
+    if request.method == 'POST':
+        title = request.form.get('title')
+        year = request.form.get('year')
+        #验证数据
+        if not title or not year or len(year)>4 or len(title)>60:
+            flash("不能为空或者超过最大长度")
+            return redirect(url_for('index'),movie_id=movie_id)
+        movie.title = title
+        movie.year = year
+        db.session.commit()
+        flash('更新完成')
+        return redirect(url_for('index'))
+
+    return render_template('edit.html',movie=movie)
 
 
 #自定义命令
