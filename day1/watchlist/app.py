@@ -70,6 +70,9 @@ def common_user():
 #views
 def index():
     if request.method == 'POST':
+        if not current_user.is_authenticated:
+            return redirect(url_for('index'))
+        #request在请求出发的时候才会包含数据
         title = request.form.get('title')
         year = request.form.get('year')
         #验证数据
@@ -96,7 +99,9 @@ def index():
 #     print(url_for("home",name="Bruce"))
 #     return "<h1>Hello,%s<h1>"%name
 
+#更新电影信息
 @app.route('/movie/edit/<int:movie_id>',methods=['GET','POST'])
+@login_required
 def edit(movie_id):
     movie = Movie.query.get_or_404(movie_id)
     if request.method == 'POST':
@@ -153,6 +158,21 @@ def logout():
     logout_user()
     flash('退出成功')
     return redirect(url_for("index"))
+
+#settings 设置
+@app.route('/settings',methods=['GET','POST'])
+@login_required
+def settings():
+    if request.method == 'POST':
+        name = request.form['name']
+        if not name or len(name)>20:
+            flash('输入错误')
+            return redirect(url_for('settings'))
+        current_user.name = name
+        db.session.commit()
+        flash('名称已经更新')
+        return redirect(url_for('index'))
+    return render_template('settings.html')
 
 #自定义命令
 #新建data.db的数据库初始化命令
